@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComputeFabric Lab</title>
+    
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- CodeMirror & Markdown -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-ocean.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        jupyter: {
+                            bg: '#0f172a',      // slate-900 
+                            panel: '#1e293b',   // slate-800
+                            border: '#334155',  // slate-700
+                            hover: '#334155',   // slate-700
+                            accent: '#6366f1',  // indigo-500
+                            text: '#f8fafc',    // slate-50 
+                            textMuted: '#94a3b8'// slate-400
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-jupyter-bg text-jupyter-text font-sans h-screen flex flex-col overflow-hidden selection:bg-jupyter-accent selection:text-white">
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Header & Menu Bar (Glassmorphism) -->
+    <header class="bg-jupyter-panel/95 backdrop-blur-md border-b border-jupyter-border flex flex-col shrink-0 select-none shadow-sm z-40 relative">
+        <!-- Logo & Title Row -->
+        <div class="flex items-center gap-3 px-5 py-3">
+            <!-- Icon -->
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                    <circle cx="12" cy="12" r="4" fill="white"/>
+                </svg>
+            </div>
+            <div class="flex flex-col">
+                <div class="text-[15px] font-semibold tracking-tight text-white flex items-center gap-3">
+                    ComputeFabric
+                    <span class="text-jupyter-textMuted font-normal">Untitled.ipynb</span>
+                    <span class="text-[10px] uppercase font-bold tracking-wider bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">Trusted</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Menu Row -->
+        <nav class="flex px-3 pb-1.5 text-[13px] relative font-medium text-jupyter-textMuted" id="top-menu">
+            <!-- File Menu -->
+            <div class="relative group menu-dropdown">
+                <button class="px-3 py-1.5 hover:bg-jupyter-hover hover:text-white rounded-md transition-colors">File</button>
+                <div class="absolute left-0 mt-0 w-56 bg-jupyter-panel border border-jupyter-border rounded-lg shadow-xl hidden group-hover:block py-1.5 backdrop-blur-xl">
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('New Notebook created')">New Notebook</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Opened Notebook')">Open...</button>
+                    <div class="h-px bg-jupyter-border my-1.5"></div>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Notebook saved')">Save Notebook</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Save Notebook As triggered')">Save Notebook As...</button>
+                    <div class="h-px bg-jupyter-border my-1.5"></div>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-red-500 hover:text-white text-red-400" onclick="logAction('Closed and Halted')">Close and Halt</button>
+                </div>
+            </div>
+            
+            <!-- Edit Menu -->
+            <div class="relative group menu-dropdown">
+                <button class="px-3 py-1.5 hover:bg-jupyter-hover hover:text-white rounded-md transition-colors">Edit</button>
+                <div class="absolute left-0 mt-0 w-48 bg-jupyter-panel border border-jupyter-border rounded-lg shadow-xl hidden group-hover:block py-1.5">
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="actionCutCell()">Cut Cells</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="actionCopyCell()">Copy Cells</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="actionPasteCell()">Paste Cells Below</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-red-500 hover:text-white text-red-400" onclick="actionDeleteCell()">Delete Cells</button>
+                </div>
+            </div>
+
+            <!-- View Menu -->
+            <div class="relative group menu-dropdown">
+                <button class="px-3 py-1.5 hover:bg-jupyter-hover hover:text-white rounded-md transition-colors">View</button>
+                <div class="absolute left-0 mt-0 w-48 bg-jupyter-panel border border-jupyter-border rounded-lg shadow-xl hidden group-hover:block py-1.5">
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="toggleElement('toolbar')">Toggle Toolbar</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="toggleLineNumbers()">Toggle Line Numbers</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="toggleFullscreen()">Toggle Fullscreen</button>
+                </div>
+            </div>
+
+            <!-- Run Menu -->
+            <div class="relative group menu-dropdown">
+                <button class="px-3 py-1.5 hover:bg-jupyter-hover hover:text-white rounded-md transition-colors">Run</button>
+                <div class="absolute left-0 mt-0 w-56 bg-jupyter-panel border border-jupyter-border rounded-lg shadow-xl hidden group-hover:block py-1.5">
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white flex justify-between group-hover/btn" onclick="runActiveCell()"><span>Run Selected Cell</span><span class="text-jupyter-border group-hover:text-white/70">Shift+Enter</span></button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="runAllCells()">Run All Cells</button>
+                </div>
+            </div>
+
+            <!-- Kernel Menu -->
+            <div class="relative group menu-dropdown">
+                <button class="px-3 py-1.5 hover:bg-jupyter-hover hover:text-white rounded-md transition-colors">Kernel</button>
+                <div class="absolute left-0 mt-0 w-56 bg-jupyter-panel border border-jupyter-border rounded-lg shadow-xl hidden group-hover:block py-1.5">
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Kernel Interrupted')">Interrupt Kernel</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="actionRestartKernel()">Restart Kernel</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="actionRestartClear()">Restart & Clear Output</button>
+                </div>
+            </div>
+            
+            <!-- Python Status Indicator -->
+            <div class="ml-auto flex items-center px-4 gap-2 text-jupyter-textMuted text-[12px] font-mono">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" id="kernel-status" title="Kernel Idle"></div>
+                Python 3.12
+            </div>
+        </nav>
+    </header>
+
+    <!-- Toolbar Icons (Sleek Glass Look) -->
+    <div id="toolbar" class="bg-jupyter-bg/80 backdrop-blur-md border-b border-jupyter-border px-4 py-2 flex items-center gap-1.5 shrink-0 z-30 flex-wrap shadow-sm">
+        <!-- Save -->
+        <button class="toolbar-btn group relative" onclick="logAction('Notebook saved'); showToast('Notebook saved successfully', 'success')" aria-label="Save Notebook">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+            <span class="tooltip">Save Notebook</span>
+        </button>
+        <!-- Add -->
+        <button class="toolbar-btn group relative" onclick="addCellBelow()" aria-label="Add Cell">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span class="tooltip">Add Cell</span>
+        </button>
+        
+        <div class="w-px h-5 bg-jupyter-border mx-2"></div>
+        
+        <!-- Cut/Copy/Paste -->
+        <button class="toolbar-btn group relative" onclick="actionCutCell()" aria-label="Cut Cell">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </button>
+        <button class="toolbar-btn group relative" onclick="actionCopyCell()" aria-label="Copy Cell">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+        </button>
+        <button class="toolbar-btn group relative" onclick="actionPasteCell()" aria-label="Paste Cell">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+        </button>
+
+        <div class="w-px h-5 bg-jupyter-border mx-2"></div>
+        
+        <!-- Run / Stop / Restart -->
+        <button class="toolbar-btn group relative text-emerald-400 hover:text-emerald-300" onclick="runActiveCell()" aria-label="Run Cell">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
+            <span class="tooltip">Run (Shift+Enter)</span>
+        </button>
+        <button class="toolbar-btn group relative text-rose-400 hover:text-rose-300" onclick="logAction('Kernel execution interrupted')" aria-label="Stop Execution">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm3 2a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H6z" clip-rule="evenodd"></path></svg>
+        </button>
+        <button class="toolbar-btn group relative text-jupyter-textMuted" onclick="actionRestartKernel()" aria-label="Restart Kernel">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+
+        <div class="w-px h-5 bg-jupyter-border mx-2"></div>
+
+        <!-- Cell Type Dropdown -->
+        <select id="global-cell-type" class="text-[13px] bg-jupyter-panel border border-jupyter-border text-jupyter-text rounded-md focus:ring-2 focus:ring-jupyter-accent focus:border-jupyter-accent outline-none px-3 py-1.5 cursor-pointer shadow-sm ml-2 transition-all">
+            <option value="code">Code</option>
+            <option value="markdown">Markdown</option>
+            <option value="raw">Raw</option>
+        </select>
+    </div>
+
+    <!-- Main Notebook Area -->
+    <main class="flex-1 overflow-y-auto w-full flex justify-center pb-32 pt-6 relative" id="main-scroll-area">
+        <div id="notebook-container" class="w-full max-w-[1050px] flex flex-col gap-3 px-8">
+            <!-- Cells injected via JS -->
+        </div>
+    </main>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
