@@ -1,2 +1,2 @@
 # ComputeFabric
-A decentralized server system by Srish Jana
+an Agent Cluster to run heavy jupyter cells through different agents.
