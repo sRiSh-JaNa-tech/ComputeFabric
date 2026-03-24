@@ -4,6 +4,8 @@ import http from 'http';
 import WebSocket from 'ws';
 import dotenv from 'dotenv';
 
+import ITask from './schema/Task';
+
 dotenv.config();
 
 const app = express();
@@ -14,7 +16,7 @@ const PORT = process.env.PORT || 8080;
 
 const nodes: Record<string, any> = {};
 
-function sendToNode(nodeId: string, message: any) {
+function sendToNode(nodeId: string, message: ITask) {
   const node = nodes[nodeId];
 
   if (!node) {
@@ -25,8 +27,10 @@ function sendToNode(nodeId: string, message: any) {
   if (node.ws.readyState === WebSocket.OPEN) {
     node.ws.send(JSON.stringify(message));
     console.log("Sent to", nodeId, message);
+    return true;
   } else {
     console.log("Connection not open for:", nodeId);
+    return false;
   }
 }
 
@@ -39,8 +43,34 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.get("/available", (req : Request, res : Response)=>{
-  
+app.get("/available/:nodeId", (req: Request<{ nodeId: string }>, res: Response) => {
+  try {
+    const nodeId = req.params.nodeId || "node-1";
+
+    const task: ITask = {
+      type: "specs",
+      taskId: "sample-task-1",
+      payload: null
+    };
+
+    const success = sendToNode(nodeId, task);
+
+    if (!success) {
+      return res.status(404).json({
+        error: "Node not found or not connected"
+      });
+    }
+
+    return res.json({
+      message: "Task sent successfully",
+      nodeId
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      error: "Internal server error"
+    });
+  }
 });
 
 wss.on("connection", (ws) => {
@@ -80,16 +110,16 @@ wss.on("connection", (ws) => {
   });
 });
 
-setInterval(() => {
-    sendToNode("node-1", {
-        type: "task",
-        taskId: "task-123",
-        payload: {
-            operation: "multiply",
-            value: 5
-        }
-    });
-  }, 5000);
+// setInterval(() => {
+//     sendToNode("node-1", {
+//         type: "task",
+//         taskId: "task-123",
+//         payload: {
+//             operation: "multiply",
+//             value: 5
+//         }
+//     });
+//   }, 5000);
 
 server.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
