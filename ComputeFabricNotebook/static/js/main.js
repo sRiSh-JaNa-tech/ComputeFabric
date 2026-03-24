@@ -236,15 +236,39 @@ async function runCell(id, advanceFocus = true) {
         outputArea.innerHTML = '';
         outputArea.className = 'output-area'; 
         
-        if (data.error) {
+        const hasOutput = data.output && data.output.trim().length > 0;
+        const hasImages = data.images && data.images.length > 0;
+        const hasError = !!data.error;
+
+        if (hasError) {
             outputRow.classList.remove('hidden');
             outPrompt.innerText = '';
             outputArea.classList.add('output-error');
-            outputArea.innerText = data.error;
-        } else if (data.output) {
+            outputArea.textContent = data.error;
+        } else if (hasOutput || hasImages) {
             outputRow.classList.remove('hidden');
             outPrompt.innerText = `Out[${cell.executionCount}]:`;
-            outputArea.innerText = data.output;
+            
+            // Render text output first
+            if (hasOutput) {
+                const textBlock = document.createElement('pre');
+                textBlock.className = 'output-text';
+                textBlock.textContent = data.output;
+                outputArea.appendChild(textBlock);
+            }
+            
+            // Render images
+            if (hasImages) {
+                data.images.forEach((imgBase64) => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'output-image';
+                    const img = document.createElement('img');
+                    img.src = `data:image/png;base64,${imgBase64}`;
+                    img.alt = 'Plot output';
+                    imgWrapper.appendChild(img);
+                    outputArea.appendChild(imgWrapper);
+                });
+            }
         } else {
             outputRow.classList.add('hidden');
         }

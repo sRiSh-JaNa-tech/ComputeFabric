@@ -1,4 +1,5 @@
 import express from 'express';
+import { Request, Response } from 'express';
 import http from 'http';
 import WebSocket from 'ws';
 import dotenv from 'dotenv';
@@ -36,6 +37,10 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get("/available", (req : Request, res : Response)=>{
+  
 });
 
 wss.on("connection", (ws) => {
