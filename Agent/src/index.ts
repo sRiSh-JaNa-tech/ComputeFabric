@@ -1,85 +1,129 @@
 import WebSocket from "ws";
-import dotenv from 'dotenv';
-
+import dotenv from "dotenv";
 import getSystemInfo from "./cust_func/get_specs";
 
 dotenv.config();
 
+// Interfaces
+interface ServerData {
+  server_id: string;
+  server_name: string;
+  link: string;
+}
+
+interface SearchResponse {
+  status: "found" | "not_found";
+  data: ServerData | null;
+}
+
 const nodeId = "node-1";
-const SERVER_URL = "ws://localhost:5380";
 
-console.log(`🚀 Agent starting, connecting to ${SERVER_URL}...`);
+// Fetch server URL from registry
+async function connectHost(): Promise<string> {
+  const res = await fetch(
+    "https://computefabric.onrender.com/getConn/Capybara_34"
+  );
 
-// 🔌 Connect to server as a client
-const ws = new WebSocket(SERVER_URL);
+  if (!res.ok) {
+    throw new Error("Failed to fetch server info");
+  }
 
-// 🔌 When connected
-ws.on("open", () => {
-  console.log("✅ Connected to server");
+  const main: SearchResponse = await res.json();
 
-  // 🔹 Register node
-  ws.send(JSON.stringify({
-    type: "register",
-    nodeId
-  }));
+  if (main.status !== "found" || !main.data) {
+    throw new Error("Server not found in registry");
+  }
 
-  // 🔹 Heartbeat every 5 seconds
-  setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: "heartbeat",
-        nodeId
-      }));
-    }
-  }, 5000);
-});
+  // Convert http/https to ws/wss
+  const server_url = main.data.link.replace(/^http/, "ws");
 
-// 📩 Listen for messages from server
-ws.on("message", async (msg) => {
+  return server_url;
+}
+
+// Main connection logic with auto-reconnect
+async function startAgent() {
   try {
-    const data = JSON.parse(msg.toString());
+    const SERVER_URL = await connectHost();
+    console.log(`Connecting to ${SERVER_URL}...`);
 
-    console.log("📩 Message received from server:", data);
+    const ws = new WebSocket(SERVER_URL);
 
-    if (data.type === "task") {
-      console.log("🧠 Processing task:", data.payload);
+    ws.on("open", () => {
+      console.log("Connected to server");
 
-      // Example task processing: multiply the value
-      const result = data.payload.value * 2;
+      // Register node
+      ws.send(
+        JSON.stringify({
+          type: "register",
+          nodeId,
+        })
+      );
 
-      // 🔁 Send result back
-      ws.send(JSON.stringify({
-        type: "result",
-        nodeId,
-        taskId: data.taskId,
-        result
-      }));
-      console.log("📤 Result sent back to server:", result);
-    }
-    else if(data.type === 'specs'){
-      console.log("📊 Gathering system specs...");
-      const specs = await getSystemInfo();
-      ws.send(JSON.stringify({
-        type: "specs_result",
-        nodeId,
-        taskId: data.taskId,
-        specs
-      }));
-      console.log("📤 System specs sent to server.");
-    }
+      // Heartbeat
+      setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "heartbeat",
+              nodeId,
+            })
+          );
+        }
+      }, 5000);
+    });
+
+    // Handle messages
+    ws.on("message", async (msg) => {
+      try {
+        const data = JSON.parse(msg.toString());
+
+        console.log("Received:", data);
+
+        if (data.type === "task") {
+          const result = data.payload.value * 2;
+
+          ws.send(
+            JSON.stringify({
+              type: "result",
+              nodeId,
+              taskId: data.taskId,
+              result,
+            })
+          );
+        } else if (data.type === "specs") {
+          const specs = await getSystemInfo();
+
+          ws.send(
+            JSON.stringify({
+              type: "specs_result",
+              nodeId,
+              taskId: data.taskId,
+              specs,
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Message processing error:", err);
+      }
+    });
+
+    // Handle errors
+    ws.on("error", (err) => {
+      console.error("WebSocket error:", err.message);
+    });
+
+    // Auto reconnect
+    ws.on("close", () => {
+      console.log("Disconnected. Reconnecting in 3 seconds...");
+      setTimeout(startAgent, 3000);
+    });
+
+  } catch (err) {
+    console.error("Failed to connect:", err);
+    console.log("Retrying in 5 seconds...");
+    setTimeout(startAgent, 5000);
   }
-  catch (err) {
-    console.error("❌ Invalid JSON received or processing error:", err);
-  }
-});
+}
 
-// ❌ Handle errors
-ws.on("error", (err) => {
-  console.error("❌ WebSocket error:", err.message);
-});
-
-// 🔌 Handle disconnect
-ws.on("close", () => {
-  console.log("🔌 Disconnected from server");
-  // Optional: Add reconnection logic here
-});
+// Start agent
+startAgent();

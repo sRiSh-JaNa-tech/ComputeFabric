@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app);
 
 const wss = new WebSocket.Server({ server });
-const PORT = process.env.PORT || 8080;
+const PORT=5380;
 
 const nodes: Record<string, any> = {};
 
