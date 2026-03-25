@@ -2,13 +2,16 @@ import express from 'express';
 import { Request, Response } from 'express';
 import http from 'http';
 import WebSocket from 'ws';
+import fs from 'fs';
 import dotenv from 'dotenv';
+import cors from 'cors';
 
 import ITask from './schema/Task';
 
 dotenv.config();
 
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
 
 const wss = new WebSocket.Server({ server });
@@ -43,33 +46,70 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.get("/available/:nodeId", (req: Request<{ nodeId: string }>, res: Response) => {
+app.get("/available", async (req: Request, res: Response) => {
   try {
-    const nodeId = req.params.nodeId || "node-1";
-
-    const task: ITask = {
-      type: "specs",
-      taskId: "sample-task-1",
-      payload: null
-    };
-
-    const success = sendToNode(nodeId, task);
-
-    if (!success) {
-      return res.status(404).json({
-        error: "Node not found or not connected"
-      });
+    const activeNodes = Object.keys(nodes);
+    
+    if (activeNodes.length === 0) {
+      res.json({ status: "success", agents: [] });
+      return;
     }
 
-    return res.json({
-      message: "Task sent successfully",
-      nodeId
+    const fetchId = "live-" + Date.now() + "-" + Math.random().toString(36).substring(7);
+
+    // Broadcast live spec request to all connected agents
+    activeNodes.forEach(id => {
+      if (nodes[id]) {
+        nodes[id].expectedSpecTask = fetchId;
+        nodes[id].liveSpecsResult = null;
+        sendToNode(id, {
+          type: "specs",
+          taskId: fetchId,
+          payload: null
+        });
+      }
     });
 
-  } catch (err) {
-    return res.status(500).json({
-      error: "Internal server error"
+    // Wait asynchronously for agents to compute and return live specs (max 3500ms)
+    const timeout = 3500;
+    const interval = 50;
+    let elapsed = 0;
+
+    await new Promise<void>((resolve) => {
+      const timer = setInterval(() => {
+        elapsed += interval;
+        let allDone = true;
+        
+        for (const id of activeNodes) {
+          if (nodes[id] && !nodes[id].liveSpecsResult) {
+            allDone = false;
+            break;
+          }
+        }
+
+        if (allDone || elapsed >= timeout) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, interval);
     });
+
+    // Compile results
+    const availableNodes = activeNodes.map(id => ({
+      nodeId: id,
+      lastSeen: nodes[id]?.lastSeen || Date.now(),
+      // Prioritize the freshly minted live specs, fallback to registration cache if they timed out
+      specs: nodes[id]?.liveSpecsResult || nodes[id]?.specs || null
+    }));
+
+    res.json({
+      status: "success",
+      agents: availableNodes
+    });
+    return;
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+    return;
   }
 });
 
@@ -81,8 +121,15 @@ wss.on("connection", (ws) => {
       const data = JSON.parse(msg.toString());
 
       if (data.type === "register") {
-        nodes[data.nodeId] = { ws, lastSeen: Date.now() };
+        nodes[data.nodeId] = { ws, lastSeen: Date.now(), specs: null };
         console.log("Node registered:", data.nodeId);
+        
+        // Automatically request specs on connection
+        sendToNode(data.nodeId, {
+          type: "specs",
+          taskId: "get-specs-on-register",
+          payload: null
+        });
       }
 
       if (data.type === "heartbeat") {
@@ -91,7 +138,20 @@ wss.on("connection", (ws) => {
         }
       }
 
-      console.log("Received:", data);
+      if (data.type === "specs_result") {
+        if (nodes[data.nodeId]) {
+          nodes[data.nodeId].specs = data.specs; // Update long-term cache
+          
+          // If this result matches a live API request block, attach it for immediate response
+          if (data.taskId && nodes[data.nodeId].expectedSpecTask === data.taskId) {
+            nodes[data.nodeId].liveSpecsResult = data.specs;
+          }
+          
+          console.log(`Live specs synced for ${data.nodeId}`);
+        }
+      }
+
+      console.log("Received:", data.type);
 
     } catch (err) {
       console.error("Invalid JSON:", err);

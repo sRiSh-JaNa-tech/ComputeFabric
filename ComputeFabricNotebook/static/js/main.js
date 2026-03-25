@@ -451,3 +451,143 @@ function setupKeyboardShortcuts() {
         }
     });
 }
+
+// 7. Agents Modal
+async function fetchAndShowAgents() {
+    showToast("Fetching active agents...", "info");
+    
+    try {
+        const response = await fetch('http://localhost:5380/available');
+        if (!response.ok) throw new Error("Failed to fetch");
+        const json = await response.json();
+        
+        const agents = json.agents || [];
+        showAgentsModal(agents);
+    } catch (err) {
+        console.error(err);
+        showToast("Error connecting to CommServer.", "error");
+    }
+}
+
+function showAgentsModal(agents) {
+    const existing = document.getElementById('agents-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'agents-modal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 overflow-y-auto font-sans opacity-0 transition-opacity duration-300';
+    
+    let html = `
+        <div class="bg-jupyter-panel border border-jupyter-border rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col transform scale-95 transition-transform duration-300 m-auto mt-20" id="agents-modal-box">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-jupyter-border bg-jupyter-panel/90 rounded-t-xl sticky top-0 z-10 backdrop-blur-md shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <svg class="w-5 h-5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h2 class="text-xl font-semibold text-white tracking-tight">Active Agents <span class="bg-jupyter-hover text-jupyter-textMuted px-2.5 py-0.5 rounded-full text-xs ml-2 align-middle font-mono border border-jupyter-border/50">${agents.length}</span></h2>
+                </div>
+                <button onclick="closeAgentsModal()" class="text-jupyter-textMuted hover:text-white p-2 rounded-lg hover:bg-jupyter-hover transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 flex flex-col gap-6 custom-scrollbar">
+    `;
+
+    if (agents.length === 0) {
+        html += `
+            <div class="flex flex-col items-center justify-center py-16 text-jupyter-textMuted">
+                <svg class="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                <p class="text-lg font-medium">No Agents Connected</p>
+                <p class="text-sm mt-1">Start comm_server nodes to see them instantly appear here.</p>
+            </div>
+        `;
+    } else {
+        agents.forEach((agent) => {
+            const specs = agent.specs || {};
+            const cpu = specs.CPU || {};
+            const ram = specs.RAM || {};
+            const os = specs.OS || {};
+            const disk = (specs.Disk && specs.Disk.length > 0) ? specs.Disk[0] : {};
+
+            const lastSeenDate = new Date(agent.lastSeen || Date.now()).toLocaleTimeString();
+
+            html += `
+                <div class="bg-jupyter-bg/50 border border-jupyter-border/50 rounded-xl overflow-hidden hover:border-jupyter-accent/40 transition-colors shadow-sm group">
+                    <div class="bg-jupyter-panel/50 px-4 py-3 border-b border-jupyter-border/50 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                            <h3 class="font-mono font-medium text-white/90">${agent.nodeId}</h3>
+                        </div>
+                        <div class="text-[11px] text-jupyter-textMuted font-mono">Last Ping: ${lastSeenDate}</div>
+                    </div>
+                    
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm z-50">
+                        <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
+                            <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                                CPU Processor
+                            </div>
+                            <p class="text-white/80 font-medium">${cpu.manufacturer || 'Unknown'} ${cpu.brand || ''}</p>
+                            <p class="text-jupyter-textMuted mt-1">${cpu.cores || '?'} Cores @ ${cpu.speed || '?'}GHz</p>
+                        </div>
+
+                        <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
+                            <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                                Operating System
+                            </div>
+                            <p class="text-white/80 font-medium">${os.distro || 'Unknown OS'} ${os.release || ''}</p>
+                            <p class="text-jupyter-textMuted mt-1">${os.platform || '?'} (${os.arch || '?'})</p>
+                        </div>
+
+                        <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
+                            <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                                Memory (RAM)
+                            </div>
+                            <p class="text-white/80 font-medium">${ram.total ? Math.round(ram.total / (1024 ** 3)) + ' GB Total' : 'Unknown'}</p>
+                            <p class="text-jupyter-textMuted mt-1">${ram.free ? Math.round(ram.free / (1024 ** 3)) + ' GB Free' : 'Unknown'}</p>
+                        </div>
+                        
+                        <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
+                            <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                                Primary Storage
+                            </div>
+                            <p class="text-white/80 font-medium">${disk.name || disk.device || 'Unknown Storage Drive'}</p>
+                            <p class="text-jupyter-textMuted mt-1">${disk.size ? Math.round(disk.size / (1024 ** 3)) + ' GB Capacity' : 'Unknown (' + (disk.type || 'Drive') + ')'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
+    
+    requestAnimationFrame(() => {
+        modal.classList.remove('opacity-0');
+        document.getElementById('agents-modal-box').classList.remove('scale-95');
+        document.getElementById('agents-modal-box').classList.add('scale-100');
+    });
+}
+
+function closeAgentsModal() {
+    const modal = document.getElementById('agents-modal');
+    if (!modal) return;
+    
+    modal.classList.add('opacity-0');
+    document.getElementById('agents-modal-box').classList.remove('scale-100');
+    document.getElementById('agents-modal-box').classList.add('scale-95');
+    
+    setTimeout(() => {
+        modal.remove();
+    }, 300);
+}

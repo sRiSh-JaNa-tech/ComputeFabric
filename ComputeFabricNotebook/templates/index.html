@@ -127,10 +127,15 @@
                 </div>
             </div>
             
-            <!-- Python Status Indicator -->
-            <div class="ml-auto flex items-center px-4 gap-2 text-jupyter-textMuted text-[12px] font-mono">
-                <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" id="kernel-status" title="Kernel Idle"></div>
-                Python 3.12
+            <!-- Agents & Python Status Indicator -->
+            <div class="ml-auto flex items-center px-4 gap-4 text-jupyter-textMuted text-[12px] font-mono">
+                <button onclick="fetchAndShowAgents()" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-jupyter-hover hover:bg-jupyter-border text-white transition-colors cursor-pointer text-[13px] font-sans shadow-sm" title="View Active Agents">
+                    <span class="italic font-serif opacity-70">i</span> <span class="font-medium">Agents</span>
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" id="kernel-status" title="Kernel Idle"></div>
+                    Python 3.12
+                </div>
             </div>
         </nav>
     </header>
