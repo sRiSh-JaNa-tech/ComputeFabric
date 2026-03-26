@@ -199,7 +199,7 @@ function actionPasteCell() {
 }
 
 // 4. Execution Engine
-async function runCell(id, advanceFocus = true) {
+async function runCell(id, advanceFocus = true, nodeId = 'current') {
     const cell = cells.find(c => c.id === id);
     if (!cell) return;
     
@@ -222,7 +222,8 @@ async function runCell(id, advanceFocus = true) {
     document.getElementById('kernel-status').style.backgroundColor = '#eab308'; // yellow
 
     try {
-        const response = await fetch('/api/execute', {
+        const url = nodeId === 'current' ? '/api/execute' : `/api/execute/${nodeId}`;
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: content })
@@ -514,15 +515,20 @@ function showAgentsModal(agents) {
 
             html += `
                 <div class="bg-jupyter-bg/50 border border-jupyter-border/50 rounded-xl overflow-hidden hover:border-jupyter-accent/40 transition-colors shadow-sm group">
-                    <div class="bg-jupyter-panel/50 px-4 py-3 border-b border-jupyter-border/50 flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
-                            <h3 class="font-mono font-medium text-white/90">${agent.nodeId}</h3>
+                        <div class="bg-jupyter-panel/50 px-4 py-3 border-b border-jupyter-border/50 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                                <h3 class="font-mono font-medium text-white/90">${agent.nodeId}</h3>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <button onclick="runRemoteOnNode('${agent.nodeId}')" class="text-[11px] bg-jupyter-accent/20 hover:bg-jupyter-accent text-jupyter-accent hover:text-white px-2 py-1 rounded border border-jupyter-accent/30 transition-all font-medium uppercase tracking-wider">
+                                    Run Active Cell
+                                </button>
+                                <div class="text-[11px] text-jupyter-textMuted font-mono">Last Ping: ${lastSeenDate}</div>
+                            </div>
                         </div>
-                        <div class="text-[11px] text-jupyter-textMuted font-mono">Last Ping: ${lastSeenDate}</div>
-                    </div>
                     
-                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm z-50">
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm z-50">
                         <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
                             <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
@@ -550,13 +556,25 @@ function showAgentsModal(agents) {
                             <p class="text-jupyter-textMuted mt-1">${ram.free ? Math.round(ram.free / (1024 ** 3)) + ' GB Free' : 'Unknown'}</p>
                         </div>
                         
+                            <p class="text-jupyter-textMuted mt-1">${disk.size ? Math.round(disk.size / (1024 ** 3)) + ' GB Capacity' : 'Unknown (' + (disk.type || 'Drive') + ')'}</p>
+                        </div>
+
                         <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
                             <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
-                                Primary Storage
+                                <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.414 8.414c5.858-5.857 15.356-5.857 21.213 0"></path></svg>
+                                Network (WiFi)
                             </div>
-                            <p class="text-white/80 font-medium">${disk.name || disk.device || 'Unknown Storage Drive'}</p>
-                            <p class="text-jupyter-textMuted mt-1">${disk.size ? Math.round(disk.size / (1024 ** 3)) + ' GB Capacity' : 'Unknown (' + (disk.type || 'Drive') + ')'}</p>
+                            <p class="text-white/80 font-medium">${specs.WiFi?.ssid || 'Ethernet/Other'}</p>
+                            <p class="text-jupyter-textMuted mt-1">Signal: ${specs.WiFi?.signal || 'N/A'}</p>
+                        </div>
+
+                        <div class="bg-jupyter-panel/30 border border-jupyter-border/30 rounded-lg p-3">
+                            <div class="text-xs text-jupyter-textMuted font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                Connection Speed
+                            </div>
+                            <p class="text-white/80 font-medium">${specs.Speed?.download || 'Pending...'}</p>
+                            <p class="text-jupyter-textMuted mt-1">Upload: ${specs.Speed?.upload || 'Pending...'}</p>
                         </div>
                     </div>
                 </div>
@@ -590,4 +608,12 @@ function closeAgentsModal() {
     setTimeout(() => {
         modal.remove();
     }, 300);
+}
+function runRemoteOnNode(nodeId) {
+    if (!activeCellId) {
+        showToast("No active cell to run", "error");
+        return;
+    }
+    closeAgentsModal();
+    runCell(activeCellId, true, nodeId);
 }

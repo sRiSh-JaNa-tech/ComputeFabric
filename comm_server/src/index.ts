@@ -113,6 +113,55 @@ app.get("/available", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/execute", async (req: Request, res: Response) => {
+  try {
+    const { type, nodeId, taskId, payload } = req.body;
+    const message = {
+      type: type,
+      taskId: taskId,
+      payload: payload
+    };
+
+    if (!nodes[nodeId]) {
+      res.status(404).json({ error: "Node not found" });
+      return;
+    }
+
+    nodes[nodeId].expectedExecuteTask = taskId;
+    nodes[nodeId].executeResult = null;
+
+    const sent = sendToNode(nodeId, message);
+    if (!sent) {
+      res.status(500).json({ error: "Failed to send to node" });
+      return;
+    }
+
+    // Wait for result
+    const timeout = 10000; // 10s for execution
+    const interval = 100;
+    let elapsed = 0;
+
+    await new Promise<void>((resolve) => {
+      const timer = setInterval(() => {
+        elapsed += interval;
+        if ((nodes[nodeId] && nodes[nodeId].executeResult) || elapsed >= timeout) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, interval);
+    });
+
+    if (nodes[nodeId] && nodes[nodeId].executeResult) {
+      res.json(nodes[nodeId].executeResult);
+      nodes[nodeId].executeResult = null; // Clear after use
+    } else {
+      res.status(408).json({ error: "Execution timed out" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 wss.on("connection", (ws) => {
   console.log("Agent connected");
 
@@ -148,6 +197,16 @@ wss.on("connection", (ws) => {
           }
           
           console.log(`Live specs synced for ${data.nodeId}`);
+        }
+      }
+
+      if (data.type === "execute_result") {
+        if (nodes[data.nodeId] && nodes[data.nodeId].expectedExecuteTask === data.taskId) {
+          nodes[data.nodeId].executeResult = {
+            output: data.output,
+            error: data.error
+          };
+          console.log(`Execution result received for ${data.nodeId}`);
         }
       }
 

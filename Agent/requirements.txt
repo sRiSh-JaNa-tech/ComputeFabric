@@ -1,0 +1,12 @@
+flask
+websocket-client
+requests
+psutil
+python-dotenv
+py-cpuinfo
+speedtest-cli
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn

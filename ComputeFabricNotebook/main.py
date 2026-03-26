@@ -4,6 +4,8 @@ import io
 import base64
 import traceback
 import contextlib
+import uuid
+import requests
 
 app = Flask(__name__)
 
@@ -82,11 +84,28 @@ def read_root():
     return render_template("index.html")
 
 
-@app.route("/api/execute", methods=["POST"])
-def execute_code():
+@app.route("/api/execute/<node_id>", methods=["POST"])
+def execute_code(node_id="current"):
     global kernel_globals
     data = request.get_json()
     code = data.get("code", "")
+    
+    if node_id != 'current':
+        payload = {
+            "type": "execute",
+            "nodeId": node_id,
+            "taskId": str(uuid.uuid4()),
+            "payload": {
+                "codeId": str(uuid.uuid4()),
+                "code": code
+            }
+        }
+        try:
+            resp = requests.post("http://localhost:5380/execute", json=payload)
+            resp.raise_for_status()
+            return jsonify(resp.json())
+        except Exception as e:
+            return jsonify({"error": f"CommServer Error: {str(e)}"}), 500
 
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
