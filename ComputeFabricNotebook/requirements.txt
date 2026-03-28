@@ -1,6 +1,13 @@
+flask-cors
 flask
-numpy
-matplotlib
-pandas
-scikit-learn
+websocket-client
 requests
+psutil
+python-dotenv
+py-cpuinfo
+speedtest-cli
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn

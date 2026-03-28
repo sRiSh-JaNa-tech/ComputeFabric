@@ -1,14 +1,16 @@
 from flask import Flask, request, render_template, jsonify
+from flask_cors import CORS
 import sys
 import io
 import base64
 import traceback
 import contextlib
 import uuid
+import platform
 import requests
 
 app = Flask(__name__)
-
+CORS(app)
 # In-memory state mimicking a Jupyter kernel
 kernel_globals = {}
 
@@ -83,7 +85,13 @@ def _patch_plt_show(image_list):
 def read_root():
     return render_template("index.html")
 
+@app.route("/get_version")
+def getVersion():
+    version = platform.python_version()
+    return jsonify({"version" : version})
 
+
+@app.route("/api/execute", methods=["POST"])
 @app.route("/api/execute/<node_id>", methods=["POST"])
 def execute_code(node_id="current"):
     global kernel_globals

@@ -7,12 +7,15 @@ let activeCellId = null;
 let clipboardCell = null;
 let cellCounter = 0;
 let isDarkTheme = true;
+let availableAgents = [];
 
 // 1. Initialization
 document.addEventListener('DOMContentLoaded', () => {
     logAction('Notebook environment initialized');
     addCell(); // Start with one cell
     setupKeyboardShortcuts();
+    pollAgents();
+    setInterval(pollAgents, 10000);
 });
 
 // 2. Cell DOM Operations
@@ -26,8 +29,18 @@ function generateCellHtml(id) {
                 <button onclick="deleteCell('${id}', event)" title="Delete Cell" class="delete-btn">✕</button>
             </div>
             
+            <!-- Agent Selection -->
+            <div class="cell-agent-selection">
+                <select id="agent-select-${id}" class="agent-dropdown" onclick="event.stopPropagation()">
+                    <option value="current">Local Kernel</option>
+                </select>
+            </div>
+
             <!-- Code/Markdown input -->
             <div class="cell-input-row">
+                <div class="cell-play-button" onclick="runCell('${id}', true, document.getElementById('agent-select-${id}').value); event.stopPropagation();" title="Run Cell">
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M8 5v14l11-7z"/></svg>
+                </div>
                 <div class="prompt in" id="prompt-in-${id}">In [ ]:</div>
                 <div class="cell-content">
                     <div id="md-render-${id}" class="markdown-body hidden" ondblclick="editMarkdown('${id}')"></div>
@@ -81,8 +94,8 @@ function addCell(index = -1, type = 'code', content = '') {
         viewportMargin: Infinity,
         theme: isDarkTheme ? 'material-ocean' : 'default',
         extraKeys: {
-            "Shift-Enter": () => runCell(id),
-            "Ctrl-Enter": () => runCell(id, false)
+            "Shift-Enter": () => runCell(id, true, document.getElementById(`agent-select-${id}`).value),
+            "Ctrl-Enter": () => runCell(id, false, document.getElementById(`agent-select-${id}`).value)
         }
     });
 
@@ -97,6 +110,7 @@ function addCell(index = -1, type = 'code', content = '') {
     }
 
     setActiveCell(id);
+    updateAllAgentDropdowns();
     setTimeout(() => editor.refresh(), 10);
     logAction(`Cell added (${type})`);
     return id;
@@ -297,7 +311,10 @@ function advanceToNextCell(currentId) {
 }
 
 function runActiveCell() {
-    if (activeCellId) runCell(activeCellId, true);
+    if (activeCellId) {
+        const nodeId = document.getElementById(`agent-select-${activeCellId}`).value;
+        runCell(activeCellId, true, nodeId);
+    }
 }
 
 async function runAllCells() {
@@ -305,7 +322,8 @@ async function runAllCells() {
     showToast("Running all cells...", "info");
     for (const cell of cells) {
         if (cell.type === 'code') {
-            await runCell(cell.id, false);
+            const nodeId = document.getElementById(`agent-select-${cell.id}`).value;
+            await runCell(cell.id, false, nodeId);
         } else {
             renderMarkdown(cell.id, cell.editor.getValue());
         }
@@ -316,14 +334,16 @@ async function runAllCells() {
 async function runAllAbove() {
     const targetIdx = getCellIndex(activeCellId);
     for (let i = 0; i < targetIdx; i++) {
-        await runCell(cells[i].id, false);
+        const nodeId = document.getElementById(`agent-select-${cells[i].id}`).value;
+        await runCell(cells[i].id, false, nodeId);
     }
 }
 
 async function runAllBelow() {
     const targetIdx = getCellIndex(activeCellId);
     for (let i = targetIdx; i < cells.length; i++) {
-        await runCell(cells[i].id, false);
+        const nodeId = document.getElementById(`agent-select-${cells[i].id}`).value;
+        await runCell(cells[i].id, false, nodeId);
     }
 }
 
@@ -347,6 +367,7 @@ function changeActiveCellType(type) {
     }
     logAction(`Cell type changed to ${type}`);
 }
+
 
 function renderMarkdown(id, content) {
     const mdContainer = document.getElementById(`md-render-${id}`);
@@ -615,5 +636,39 @@ function runRemoteOnNode(nodeId) {
         return;
     }
     closeAgentsModal();
+    const selectLabel = document.getElementById(`agent-select-${activeCellId}`);
+    if (selectLabel) selectLabel.value = nodeId;
     runCell(activeCellId, true, nodeId);
+}
+
+async function pollAgents() {
+    try {
+        const response = await fetch('http://localhost:5380/available');
+        if (response.ok) {
+            const json = await response.json();
+            availableAgents = json.agents || [];
+            updateAllAgentDropdowns();
+        }
+    } catch (e) {
+        // silently fail
+    }
+}
+
+function updateAllAgentDropdowns() {
+    const dropdowns = document.querySelectorAll('.agent-dropdown');
+    dropdowns.forEach(select => {
+        const currentVal = select.value;
+        select.innerHTML = '<option value="current">Local Kernel</option>';
+        availableAgents.forEach(agent => {
+            const opt = document.createElement('option');
+            opt.value = agent.nodeId;
+            opt.textContent = `Agent: ${agent.nodeId.substring(0,8)}`;
+            select.appendChild(opt);
+        });
+        if (Array.from(select.options).some(o => o.value === currentVal)) {
+            select.value = currentVal;
+        } else {
+            select.value = 'current';
+        }
+    });
 }

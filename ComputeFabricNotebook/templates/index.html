@@ -132,9 +132,9 @@
                 <button onclick="fetchAndShowAgents()" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-jupyter-hover hover:bg-jupyter-border text-white transition-colors cursor-pointer text-[13px] font-sans shadow-sm" title="View Active Agents">
                     <span class="italic font-serif opacity-70">i</span> <span class="font-medium">Agents</span>
                 </button>
-                <div class="flex items-center gap-2">
+                <div id = "pyVersion" class="flex items-center gap-2">
                     <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" id="kernel-status" title="Kernel Idle"></div>
-                    Python 3.12
+                    <p id = "pyText">Python 3.12</p>
                 </div>
             </div>
         </nav>
@@ -192,11 +192,12 @@
 
     <!-- Main Notebook Area -->
     <main class="flex-1 overflow-y-auto w-full flex justify-center pb-32 pt-6 relative" id="main-scroll-area">
-        <div id="notebook-container" class="w-full max-w-[1050px] flex flex-col gap-3 px-8">
+        <div id="notebook-container" class="w-full max-w-[1440px] flex flex-col gap-3 px-10">
             <!-- Cells injected via JS -->
         </div>
     </main>
 
-    <script src="/static/js/main.js"></script>
+    <script src="../static/js/main.js"></script>
+    <script src = "../static/js/getVersion.js"></script>
 </body>
 </html>

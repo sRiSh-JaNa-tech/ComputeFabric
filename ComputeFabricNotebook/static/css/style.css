@@ -144,23 +144,76 @@
 .cell-input-row, .cell-output-row {
     display: flex;
     width: 100%;
+    align-items: flex-start;
+}
+
+/* Agent Selection */
+.cell-agent-selection {
+    margin-bottom: 8px;
+    margin-left: 12px;
+    display: flex;
+}
+.agent-dropdown {
+    background-color: #475569; /* slate-600 */
+    color: #f8fafc;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 2px 24px 2px 10px; /* space for custom arrow */
+    font-size: 11px;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    /* Custom arrow using background-image */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    background-size: 16px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.agent-dropdown:hover {
+    background-color: #64748b; /* slate-500 */
+}
+
+/* Play Button */
+.cell-play-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    margin-top: 5px;
+    margin-left: 8px;
+    margin-right: 4px;
+    color: #cbd5e1;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    user-select: none;
+}
+.cell-play-button:hover {
+    color: #10b981; /* emerald-500 */
+    background-color: rgba(16, 185, 129, 0.1);
 }
 
 .prompt {
-    width: 90px;
-    min-width: 90px;
+    width: 75px;
+    min-width: 75px;
+    white-space: nowrap;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 500;
     font-size: 12px;
     text-align: right;
-    padding-right: 16px;
+    padding-right: 12px;
     padding-top: 10px;
     user-select: none;
     opacity: 0.9;
 }
 
 .prompt.in { color: var(--prompt-in); }
-.prompt.out { color: var(--prompt-out); }
+.prompt.out { color: var(--prompt-out); margin-left: 40px; }
 
 .cell-content {
     flex-grow: 1;

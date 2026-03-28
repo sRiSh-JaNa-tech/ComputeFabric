@@ -12,6 +12,7 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 const server = http.createServer(app);
 
 const wss = new WebSocket.Server({ server });
@@ -113,6 +114,7 @@ app.get("/available", async (req: Request, res: Response) => {
   }
 });
 
+
 app.post("/execute", async (req: Request, res: Response) => {
   try {
     const { type, nodeId, taskId, payload } = req.body;
@@ -204,7 +206,8 @@ wss.on("connection", (ws) => {
         if (nodes[data.nodeId] && nodes[data.nodeId].expectedExecuteTask === data.taskId) {
           nodes[data.nodeId].executeResult = {
             output: data.output,
-            error: data.error
+            error: data.error,
+            images: data.images
           };
           console.log(`Execution result received for ${data.nodeId}`);
         }
