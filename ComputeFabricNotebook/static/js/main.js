@@ -12,7 +12,9 @@ let availableAgents = [];
 // 1. Initialization
 document.addEventListener('DOMContentLoaded', () => {
     logAction('Notebook environment initialized');
-    addCell(); // Start with one cell
+    if (!loadBuffer()) {
+        addCell(); // Start with one cell
+    }
     setupKeyboardShortcuts();
     pollAgents();
     setInterval(pollAgents, 10000);
@@ -61,15 +63,24 @@ function generateCellHtml(id) {
     `;
 }
 
-function addCell(index = -1, type = 'code', content = '') {
-    cellCounter++;
-    const id = `cell-${cellCounter}`;
+function addCell(index = -1, type = 'code', content = '', restoreState = null) {
+    let id;
+    if (restoreState) {
+        id = restoreState.id;
+        const num = parseInt(id.replace('cell-', ''));
+        if (num > cellCounter) cellCounter = num;
+    } else {
+        cellCounter++;
+        id = `cell-${cellCounter}`;
+    }
     
     const cellState = {
         id,
         type,
         editor: null,
-        executionCount: null
+        executionCount: restoreState ? restoreState.executionCount : null,
+        lastAgent: restoreState ? restoreState.lastAgent : null,
+        lastResult: restoreState ? restoreState.lastResult : null
     };
 
     const html = generateCellHtml(id);
@@ -109,10 +120,29 @@ function addCell(index = -1, type = 'code', content = '') {
         document.getElementById(`prompt-in-${id}`).style.visibility = 'hidden';
     }
 
+    if (restoreState) {
+        if (restoreState.executionCount) {
+            document.getElementById(`prompt-in-${id}`).innerText = `In [${restoreState.executionCount}]:`;
+        }
+        if (restoreState.lastResult) {
+            renderOutputs(id, restoreState.lastResult, restoreState.executionCount);
+        }
+    }
+
+    // Bind change listener to buffer but prevent execution loop if this is a restore
+    editor.on('change', () => !restoreState && saveBuffer());
+
     setActiveCell(id);
     updateAllAgentDropdowns();
+    
+    if (restoreState && restoreState.type === 'markdown') {
+        renderMarkdown(id, restoreState.content);
+    }
+    
     setTimeout(() => editor.refresh(), 10);
     logAction(`Cell added (${type})`);
+    
+    if (!restoreState) saveBuffer();
     return id;
 }
 
@@ -139,6 +169,7 @@ function deleteCell(id, event) {
     }
     logAction("Cell deleted");
     showToast("Cell deleted", "info");
+    saveBuffer();
 }
 
 function getCellIndex(id) {
@@ -171,6 +202,7 @@ function moveCellUp(id, event) {
         el.parentNode.insertBefore(el, document.getElementById(cells[idx - 1].id));
         [cells[idx - 1], cells[idx]] = [cells[idx], cells[idx - 1]];
         logAction("Moved cell up");
+        saveBuffer();
     }
 }
 
@@ -182,6 +214,7 @@ function moveCellDown(id, event) {
         el.parentNode.insertBefore(el, document.getElementById(id));
         [cells[idx], cells[idx + 1]] = [cells[idx + 1], cells[idx]];
         logAction("Moved cell down");
+        saveBuffer();
     }
 }
 
@@ -222,6 +255,7 @@ async function runCell(id, advanceFocus = true, nodeId = 'current') {
     if (cell.type === 'markdown') {
         renderMarkdown(id, content);
         logAction("Rendered Markdown cell");
+        saveBuffer();
         if (advanceFocus) advanceToNextCell(id);
         return;
     }
@@ -366,6 +400,7 @@ function changeActiveCellType(type) {
         document.getElementById(`editor-wrapper-${activeCellId}`).classList.remove('hidden');
     }
     logAction(`Cell type changed to ${type}`);
+    saveBuffer();
 }
 
 
@@ -468,8 +503,7 @@ function setupKeyboardShortcuts() {
         // Ctrl+S
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            showToast('Notebook saved successfully', 'success');
-            logAction('Saved notebook via Ctrl+S');
+            downloadIpynb();
         }
     });
 }
@@ -671,4 +705,181 @@ function updateAllAgentDropdowns() {
             select.value = 'current';
         }
     });
+}
+
+
+// 8. Persistence & Export
+function saveBuffer() {
+    const state = {
+        cellCounter,
+        cells: cells.map(c => ({
+            id: c.id,
+            type: c.type,
+            content: c.editor ? c.editor.getValue() : '',
+            executionCount: c.executionCount,
+            lastAgent: c.lastAgent,
+            lastResult: c.lastResult
+        }))
+    };
+    sessionStorage.setItem('computefabric_buffer', JSON.stringify(state));
+}
+
+function loadBuffer() {
+    const raw = sessionStorage.getItem('computefabric_buffer');
+    if (!raw) return false;
+    try {
+        const state = JSON.parse(raw);
+        if (!state.cells || state.cells.length === 0) return false;
+        
+        state.cells.forEach(c => {
+            addCell(-1, c.type, c.content, c);
+        });
+        
+        cellCounter = state.cellCounter || cellCounter;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function renderOutputs(id, data, executionCount) {
+    const outputRow = document.getElementById(`output-row-${id}`);
+    const outputArea = document.getElementById(`output-${id}`);
+    const outPrompt = document.getElementById(`prompt-out-${id}`);
+    
+    outputArea.innerHTML = '';
+    outputArea.className = 'output-area'; 
+    
+    const hasOutput = data.output && data.output.trim().length > 0;
+    const hasImages = data.images && data.images.length > 0;
+    const hasError = !!data.error;
+
+    if (hasError) {
+        outputRow.classList.remove('hidden');
+        outPrompt.innerText = '';
+        outputArea.classList.add('output-error');
+        outputArea.textContent = data.error;
+    } else if (hasOutput || hasImages) {
+        outputRow.classList.remove('hidden');
+        outPrompt.innerText = `Out[${executionCount}]:`;
+        
+        if (hasOutput) {
+            const textBlock = document.createElement('pre');
+            textBlock.className = 'output-text';
+            textBlock.textContent = data.output;
+            outputArea.appendChild(textBlock);
+        }
+        
+        if (hasImages) {
+            data.images.forEach((imgBase64) => {
+                const imgWrapper = document.createElement('div');
+                imgWrapper.className = 'output-image';
+                const img = document.createElement('img');
+                img.src = `data:image/png;base64,${imgBase64}`;
+                img.alt = 'Plot output';
+                imgWrapper.appendChild(img);
+                outputArea.appendChild(imgWrapper);
+            });
+        }
+    } else {
+        outputRow.classList.add('hidden');
+    }
+}
+
+let currentFileHandle = null;
+
+async function downloadIpynb(isSaveAs = false) {
+    const notebook = {
+        cells: [],
+        metadata: {
+            computefabric: {
+                created_at: new Date().toISOString()
+            }
+        },
+        nbformat: 4,
+        nbformat_minor: 5
+    };
+
+    cells.forEach(c => {
+        const cellData = {
+            cell_type: c.type === 'code' ? 'code' : 'markdown',
+            metadata: {
+                computefabric_agent: c.lastAgent || "local"
+            },
+            source: c.editor.getValue().split('\n').map((l, i, a) => l + (i < a.length - 1 ? '\n' : ''))
+        };
+        
+        if (c.type === 'code') {
+            cellData.execution_count = c.executionCount || null;
+            cellData.outputs = [];
+            
+            if (c.lastResult) {
+                if (c.lastResult.error) {
+                    cellData.outputs.push({
+                        output_type: "error",
+                        ename: "Error",
+                        evalue: "Execution Error",
+                        traceback: c.lastResult.error.split('\n')
+                    });
+                }
+                if (c.lastResult.output) {
+                    cellData.outputs.push({
+                        output_type: "stream",
+                        name: "stdout",
+                        text: c.lastResult.output.split('\n').map((l, i, a) => l + (i < a.length - 1 ? '\n' : ''))
+                    });
+                }
+                if (c.lastResult.images && c.lastResult.images.length > 0) {
+                    c.lastResult.images.forEach(img => {
+                         cellData.outputs.push({
+                             output_type: "display_data",
+                             data: { "image/png": img },
+                             metadata: {}
+                         });
+                    });
+                }
+            }
+        }
+        notebook.cells.push(cellData);
+    });
+
+    const jsonString = JSON.stringify(notebook, null, 2);
+
+    try {
+        if ('showSaveFilePicker' in window) {
+            if (isSaveAs || !currentFileHandle) {
+                const options = {
+                    suggestedName: 'ComputeFabric.ipynb',
+                    types: [{
+                        description: 'Jupyter Notebook',
+                        accept: { 'application/x-ipynb+json': ['.ipynb'] },
+                    }],
+                };
+                currentFileHandle = await window.showSaveFilePicker(options);
+            }
+            const writable = await currentFileHandle.createWritable();
+            await writable.write(jsonString);
+            await writable.close();
+            logAction("Notebook exported and saved to disk via FilePicker API.");
+            showToast("Notebook saved successfully", "success");
+        } else {
+            // Fallback for browsers that don't support the File System Access API
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ComputeFabric.ipynb';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            logAction("Notebook exported to .ipynb via standard download.");
+            showToast("Notebook saved successfully", "success");
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error(err);
+            showToast("Failed to save notebook", "error");
+        }
+    }
 }

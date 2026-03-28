@@ -80,8 +80,8 @@
                     <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('New Notebook created')">New Notebook</button>
                     <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Opened Notebook')">Open...</button>
                     <div class="h-px bg-jupyter-border my-1.5"></div>
-                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Notebook saved')">Save Notebook</button>
-                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="logAction('Save Notebook As triggered')">Save Notebook As...</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="downloadIpynb()">Save Notebook</button>
+                    <button class="w-full text-left px-4 py-1.5 hover:bg-jupyter-accent hover:text-white" onclick="downloadIpynb(true)">Save Notebook As...</button>
                     <div class="h-px bg-jupyter-border my-1.5"></div>
                     <button class="w-full text-left px-4 py-1.5 hover:bg-red-500 hover:text-white text-red-400" onclick="logAction('Closed and Halted')">Close and Halt</button>
                 </div>
@@ -143,7 +143,7 @@
     <!-- Toolbar Icons (Sleek Glass Look) -->
     <div id="toolbar" class="bg-jupyter-bg/80 backdrop-blur-md border-b border-jupyter-border px-4 py-2 flex items-center gap-1.5 shrink-0 z-30 flex-wrap shadow-sm">
         <!-- Save -->
-        <button class="toolbar-btn group relative" onclick="logAction('Notebook saved'); showToast('Notebook saved successfully', 'success')" aria-label="Save Notebook">
+        <button class="toolbar-btn group relative" onclick="downloadIpynb()" aria-label="Save Notebook">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
             <span class="tooltip">Save Notebook</span>
         </button>
