@@ -13,7 +13,6 @@ if %errorlevel% neq 0 (
 )
 
 echo Done!
-pause
 exit /b
 
 

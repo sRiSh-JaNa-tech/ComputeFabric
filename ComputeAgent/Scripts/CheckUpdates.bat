@@ -25,5 +25,3 @@ if %errorlevel%==0 (
 
     echo Update complete!
 )
-
-pause

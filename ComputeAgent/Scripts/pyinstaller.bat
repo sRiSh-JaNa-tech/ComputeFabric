@@ -19,9 +19,7 @@ if %errorlevel% neq 0 (
 
 echo [STEP 2] Setting up virtual environment...
 call :venvInstall
-
 echo Done!
-pause
 exit /b
 
 
@@ -53,9 +51,8 @@ call venv\Scripts\activate
 echo [STEP 5] Installing dependencies...
 
 if exist requirements.txt (
-    pip install -r %AGENT_DIR%\requirements.txt
+    pip install -r requirements.txt
 ) else (
     echo requirements.txt not found!
 )
-
 exit /b
