@@ -30,6 +30,7 @@ set REPO_URL="https://github.com/sRiSh-JaNa-tech/ComputeAgents.git"
 git remote remove origin >nul 2>&1
 git remote add origin %REPO_URL%
 
+git branch -M main
 git pull origin main
 
 if %errorlevel% neq 0 (

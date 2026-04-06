@@ -27,8 +27,9 @@ Source: "Scripts\pyinstaller.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\SetGit.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\CheckUpdates.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\sch.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Scripts\Sins.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Scripts\RS.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\setup.bat"; DestDir: "{app}"; Flags: ignoreversion
-
 
 [Run]
 Filename: "{app}\setup.bat"; Description: "Performing initial setup (Python, Git, Venv, Tasks)"; Flags: postinstall waituntilterminated runascurrentuser

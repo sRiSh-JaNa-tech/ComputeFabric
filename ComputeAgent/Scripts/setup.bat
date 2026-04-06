@@ -39,6 +39,20 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+echo [STEP 6] Setting up Scheduler...
+call Sins.bat
+if %errorlevel% neq 0 (
+    echo Scheduler setup failed!
+    exit /b 1
+)
+
+echo [STEP 7] Setting up Scheduler...
+call RS.bat
+if %errorlevel% neq 0 (
+    echo Scheduler setup failed!
+    exit /b 1
+)
+
 echo ===============================
 echo   Setup Completed Successfully
 echo ===============================
