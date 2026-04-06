@@ -9,9 +9,10 @@ import traceback
 import io
 import base64
 import websocket
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template_string
 from dotenv import load_dotenv
 from cust_func.get_specs import get_system_info
+from waitress import serve
 
 load_dotenv()
 
@@ -248,6 +249,70 @@ def start_agent():
         print("Reconnecting in 3 seconds...")
         time.sleep(3)
 
+@app.route('/')
+def dashboard():
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Compute Agent Dashboard</title>
+        <style>
+            body {
+                background-color: #0f172a;
+                color: #e2e8f0;
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 40px;
+            }
+            .card {
+                background: #1e293b;
+                padding: 20px;
+                margin: 20px auto;
+                width: 400px;
+                border-radius: 10px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            }
+            .status {
+                font-size: 20px;
+                font-weight: bold;
+            }
+            .online { color: #22c55e; }
+            .offline { color: #ef4444; }
+        </style>
+    </head>
+    <body>
+
+        <h1>⚡ Compute Agent Dashboard</h1>
+
+        <div class="card">
+            <p><strong>Node ID:</strong> {{ node_id }}</p>
+            <p class="status">
+                Status:
+                {% if is_connected %}
+                    <span class="online">🟢 Connected</span>
+                {% else %}
+                    <span class="offline">🔴 Disconnected</span>
+                {% endif %}
+            </p>
+            <p><strong>Server URL:</strong> {{ server_url }}</p>
+            <p><strong>Last Heartbeat:</strong> {{ last_heartbeat }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Endpoints</h3>
+            <p>/status</p>
+            <p>/specs</p>
+        </div>
+
+    </body>
+    </html>
+    """, 
+    node_id=NODE_ID,
+    is_connected=state.is_connected,
+    server_url=state.server_url,
+    last_heartbeat=state.last_heartbeat
+    )
+
 @app.route('/status')
 def get_status():
     return jsonify({
@@ -268,4 +333,4 @@ if __name__ == "__main__":
     
     # Run Flask server
     port = int(os.getenv("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    serve(app, host='0.0.0.0', port=port)
