@@ -29,6 +29,7 @@ Source: "Scripts\CheckUpdates.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\sch.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\Sins.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\RS.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Scripts\cf_ins.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Scripts\setup.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]

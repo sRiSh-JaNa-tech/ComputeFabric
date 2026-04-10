@@ -31,6 +31,13 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+echo Installing Cloudflare Tunnel...
+call cf_ins.bat
+if %errorlevel% neq 0 (
+    echo Cloudflare Tunnel installation failed!
+    exit /b 1
+)
+
 :: -------------------------------
 echo [STEP 5] Setting up Scheduler...
 call sch.bat

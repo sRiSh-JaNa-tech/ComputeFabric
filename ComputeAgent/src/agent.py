@@ -1,18 +1,6 @@
-import os
-import json
-import time
-import threading
-import requests
-import uuid
-import contextlib
-import traceback
-import io
-import base64
-import websocket
-from flask import Flask, jsonify, render_template_string
-from dotenv import load_dotenv
-from cust_func.get_specs import get_system_info
-from waitress import serve
+import secrets
+
+from imports import *
 
 load_dotenv()
 
@@ -22,7 +10,7 @@ kernel_globals = {}
 
 #Hello World
 
-NODE_ID = "node-1"
+NODE_ID = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
 REGISTRY_URL = "https://computefabric.onrender.com/getConn/Capybara_34"
 
 def _style_fig_for_dark_bg(fig):
@@ -43,10 +31,6 @@ def _capture_matplotlib_figures():
     """Capture all open matplotlib figures as base64 PNG strings and close them."""
     images = []
     try:
-        import matplotlib
-        matplotlib.use('Agg')  # Non-interactive backend
-        import matplotlib.pyplot as plt
-
         for fig_num in plt.get_fignums():
             fig = plt.figure(fig_num)
             _style_fig_for_dark_bg(fig)
@@ -68,10 +52,6 @@ def _patch_plt_show(image_list):
     instead of trying to open a GUI window.
     """
     try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-
         original_show = plt.show
 
         def patched_show(*args, **kwargs):
@@ -182,7 +162,6 @@ def start_agent():
                         # Restore original plt.show()
                         if original_show is not None:
                             try:
-                                import matplotlib.pyplot as plt
                                 plt.show = original_show
                             except ImportError:
                                 pass
